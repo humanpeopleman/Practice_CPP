@@ -1,0 +1,14 @@
+# Visual Studio
+.vs/
+
+# Build files
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+# User settings
+*.user
+*.suo
