@@ -57,8 +57,9 @@ struct Bomb : Item {
 };
 class Player : public Entity {
 	vector<unique_ptr<Item>> inventory;
+	int mp;
 public:
-	Player(int hp, string name) : Entity(hp, name) {}
+	Player(int hp, int mp, string name) : Entity(hp, name), mp(mp) {}
 	void addItem(unique_ptr<Item> item) {
 		inventory.push_back(move(item));
 	}
@@ -73,6 +74,12 @@ public:
 		unique_ptr<Item> item = move(inventory.front());
 		inventory.erase(inventory.begin());
 		return item;
+	}
+	bool canUseItem() { return !inventory.empty(); }
+	bool canUseSkill() { return mp >= 50; }
+	void useSkill(Entity* target) {
+		mp -= 50;
+		attack(target, 50);
 	}
 };
 
@@ -95,24 +102,42 @@ public:
 };
 int main(void) {
 	int count = 1;
-	unique_ptr<Player> player = make_unique<Player>(200, "주인공");
+	int select = 0;
+	unique_ptr<Player> player = make_unique<Player>(200, 100, "주인공");
 	unique_ptr<Monster> m1 = make_unique<Monster>(80, "고블린");
 	player->addItem(make_unique<Potion>("빨간 물약", 30));
 	player->addItem(make_unique<Bomb>("소형 폭탄", 30));
 	while (player->isAlive() && m1->isAlive()) {
-		player->attack(m1.get(), 30);
+		while (true) {
+			cout << "행동을 고르시오\n";
+			cout << "(1) 공격하기\t(2) 아이템 사용";
+			if (!player->canUseItem())
+				cout << "(사용 불가능)";
+			cout << "(3) 스킬 사용\n";
+			if (!player->canUseSkill())
+				cout << "(사용 불가능)";
+			cin >> select;
+			if (select == 1) {
+				player->attack(m1.get(), 30);
+				break;
+			}
+			else if (select == 2 && player->canUseItem()) {
+				unique_ptr<Item> item = player->firstItem();
+				if (Potion* p = dynamic_cast<Potion*>(item.get())) {
+					p->use(player.get());
+				}
+				else if (Bomb* b = dynamic_cast<Bomb*>(item.get())) {
+					b->use(m1.get());
+				}
+				break;
+			}
+			else if (select == 3 && player->canUseSkill()) {
+				player->useSkill(m1.get());
+			}
+		}
 		if (!m1->isAlive())
 			break;
 		m1->attack(player.get(), 20);
-		unique_ptr<Item> item = player->firstItem();
-		if (item != nullptr) {
-			if (Potion* p = dynamic_cast<Potion*>(item.get())) {
-				p->use(player.get());
-			}
-			else if (Bomb* b = dynamic_cast<Bomb*>(item.get())) {
-				b->use(m1.get());
-			}
-		}
 		cout << "-------------------------\n";
 	}
 	cout << "보스 등장!!\n";
