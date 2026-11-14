@@ -26,6 +26,7 @@ public:
 		hp += heal;
 		cout << name << " | " << heal << " 만큼 체력을 회복! | 남은 체력 : " << hp << "\n\n";
 	}
+	string getName() { return name; }
 	void virtual attack(Entity* target, int damage) {
 		cout << name << "이 " << target->name << "에게 " << damage << "만큼의 공격!\n";
 		target->takeDamage(damage);
@@ -92,7 +93,7 @@ class BossMonster : public Monster {
 	bool isRage = false;
 public:
 	BossMonster(int hp, string name) : Monster(hp, name) {}
-	void attack(Entity* target, int damage) {
+	void attack(Entity* target, int damage) override {
 		if (!isRage && hp <= 100) {
 			isRage = true;
 			cout << "\n [경고] " << name << "이(가) 분노하여 광폭화 상태의 돌입합니다! 공격력 2배! \n\n";
@@ -100,63 +101,62 @@ public:
 		Monster::attack(target, isRage ? 2 * damage : damage);
 	}
 };
+class BattleManager {
+public:
+	void startBattle(Player* player, Monster* monster) {
+		int select = 0;
+		cout << monster->getName() + "와 전투 개시!\n";
+		while (player->isAlive() && monster->isAlive()) {
+			while (true) {
+				cout << "행동을 고르시오\n";
+				cout << "(1) 공격하기\t(2) 아이템 사용";
+				if (!player->canUseItem())
+					cout << "(사용 불가능)";
+				cout << "(3) 스킬 사용\n";
+				if (!player->canUseSkill())
+					cout << "(사용 불가능)";
+				cin >> select;
+				if (select == 1) {
+					player->attack(monster, 30);
+					break;
+				}
+				else if (select == 2 && player->canUseItem()) {
+					unique_ptr<Item> item = player->firstItem();
+					if (Potion* p = dynamic_cast<Potion*>(item.get())) {
+						p->use(player);
+					}
+					else if (Bomb* b = dynamic_cast<Bomb*>(item.get())) {
+						b->use(monster);
+					}
+					break;
+				}
+				else if (select == 3 && player->canUseSkill()) {
+					player->useSkill(monster);
+					break;
+				}
+			}
+			if (!monster->isAlive())
+				break;
+			monster->attack(player, 20);
+			cout << "-------------------------\n";
+
+		}
+	}
+};
+
 int main(void) {
 	int count = 1;
-	int select = 0;
+	BattleManager battleManager;
+
 	unique_ptr<Player> player = make_unique<Player>(200, 100, "주인공");
 	unique_ptr<Monster> m1 = make_unique<Monster>(80, "고블린");
+
 	player->addItem(make_unique<Potion>("빨간 물약", 30));
 	player->addItem(make_unique<Bomb>("소형 폭탄", 30));
-	while (player->isAlive() && m1->isAlive()) {
-		while (true) {
-			cout << "행동을 고르시오\n";
-			cout << "(1) 공격하기\t(2) 아이템 사용";
-			if (!player->canUseItem())
-				cout << "(사용 불가능)";
-			cout << "(3) 스킬 사용\n";
-			if (!player->canUseSkill())
-				cout << "(사용 불가능)";
-			cin >> select;
-			if (select == 1) {
-				player->attack(m1.get(), 30);
-				break;
-			}
-			else if (select == 2 && player->canUseItem()) {
-				unique_ptr<Item> item = player->firstItem();
-				if (Potion* p = dynamic_cast<Potion*>(item.get())) {
-					p->use(player.get());
-				}
-				else if (Bomb* b = dynamic_cast<Bomb*>(item.get())) {
-					b->use(m1.get());
-				}
-				break;
-			}
-			else if (select == 3 && player->canUseSkill()) {
-				player->useSkill(m1.get());
-			}
-		}
-		if (!m1->isAlive())
-			break;
-		m1->attack(player.get(), 20);
-		cout << "-------------------------\n";
-	}
+	battleManager.startBattle(player.get(), m1.get());
 	cout << "보스 등장!!\n";
 	unique_ptr<BossMonster> boss1 = make_unique<BossMonster>(200, "드래곤");
-	while (player->isAlive() && boss1->isAlive()) {
-		player->attack(boss1.get(), 40);
-		if (!boss1->isAlive())
-			break;
-		boss1->attack(player.get(), 25);
-		unique_ptr<Item> item = player->firstItem();
-		if (item != nullptr) {
-			if (Potion* p = dynamic_cast<Potion*>(item.get())) {
-				p->use(player.get());
-			}
-			else if (Bomb* b = dynamic_cast<Bomb*>(item.get())) {
-				b->use(boss1.get());
-			}
-		}
-		cout << "-------------------------\n";
-	}
+
+	battleManager.startBattle(player.get(), boss1.get());
 	return 0;
 }
